@@ -1,0 +1,444 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adminUsername": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "admin.azure",
+      "metadata": {
+        "description": "Giva a Administrator username for this Azure Virtual Machine"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "minLength": 1,
+      "defaultValue": "Pa$$w0rd4@zur3!",
+      "metadata": {
+        "description": "Giva a password for the Administrator of this Azure Virtual Machine"
+      }
+    },
+    "numberOfRdshInstances": {
+      "type": "int",
+      "defaultValue": 1,
+      "metadata": {
+        "description": "How many Remote Desktop Session Host do you want to deploy"
+      }
+    },
+    "rdshVmSize": {
+      "type": "string",
+      "allowedValues": [
+        "Standard_DS2_v2",
+        "Standard_DS3_v2",
+        "Standard_DS11_v2",
+        "Standard_DS12_v2"
+      ],
+      "metadata": {
+        "description": "Which VM size do you want to choose for the Remote Desktop Session Host"
+      }
+    }
+  },
+  "variables": {
+    "storageAccountName": "[tolower(concat('sa' ,uniqueString(resourceGroup().id)))]",
+    "storageAccountName-rdsh": "[concat(variables('storageAccountName'), 'rdsh')]",
+    "vmStorageAccountContainerName": "vhd",
+    "storageSKU": "Standard_GRS",
+    "storageSKU-rdsh": "Premium_LRS",
+    "OSDisk-vm01": "AZW2K16DOM01-os-disk",
+    "DDDisk-vm01": "AZW2K16DOM01-data-disk-1",
+    "vnetAddressRange": "10.0.0.0/16",
+    "subnetAddressRange": "10.0.0.0/24",
+    "externIPAddress": "[concat('PIP-' ,resourceGroup().name)]",
+    "dnsLabel": "[concat('workspace' ,uniqueString(resourceGroup().id))]",
+    "dnsServerPrivateIp": "10.0.0.10",
+    "vSwitch-Name": "[concat('vSwitch-',resourceGroup().name)]",
+    "vNIC01": "[concat('vNIC-', variables('vmName-vm01'))]",
+    "subnet-id": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('vSwitch-Name')),'/subnets/', 'vNetwork-Sub1')]",
+    "vSwitchID": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('vSwitch-Name')))]",
+    "vNIC01ID": "[concat(resourceId('Microsoft.Network/networkInterfaces', variables('vNIC01')))]",
+    "imagePublisher": "MicrosoftWindowsServer",
+    "imageOffer": "WindowsServer",
+    "imageSKU": "2016-Datacenter",
+    "vmName-vm01": "AZW2K16DOM01",
+    "vmSize": "Standard_DS2_v2",
+    "domainName": "rdshOnAzure.local"
+  },
+  "resources": [
+    {
+      "name": "[variables('storageAccountName')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2016-01-01",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "[variables('storageSKU')]"
+      },
+      "kind": "Storage",
+      "properties": {
+        "encryption": {
+          "services": {
+            "blob": {
+              "enabled": true
+            }
+          },
+          "keySource": "Microsoft.Storage"
+        }
+      }
+    },
+    {
+      "name": "[variables('storageAccountName-rdsh')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2016-01-01",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "[variables('storageSKU-rdsh')]"
+      },
+      "kind": "Storage",
+      "properties": {
+        "encryption": {
+          "services": {
+            "blob": {
+              "enabled": true
+            }
+          },
+          "keySource": "Microsoft.Storage"
+        }
+      }
+    },
+    {
+      "name": "[variables('externIPAddress')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2016-03-30",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+          "domainNameLabel": "[variables('dnsLabel')]"
+        }
+      }
+    },
+    {
+      "name": "[variables('vSwitch-Name')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2016-03-30",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vnetAddressRange')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "vNetwork-Sub1",
+            "properties": {
+              "addressPrefix": "[variables('subnetAddressRange')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[variables('vNIC01')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2016-03-30",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[variables('vSwitchID')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ip-configuration",
+            "properties": {
+              "privateIPAddress": "10.0.0.10",
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddressVersion": "IPv4",
+              "publicIPAddress": {
+                "id": "[concat(resourceId('Microsoft.Network/publicIPAddresses', variables('externIPAddress')))]"
+              },
+              "subnet": {
+                "id": "[variables('subnet-id')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[concat('vNIC-AZW2K16RDSH', copyindex())]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2016-03-30",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "rdsh-nic-loop",
+        "count": "[parameters('numberOfRdshInstances')]"
+      },
+      "dependsOn": [
+        "[variables('vSwitchID')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ip-configuration",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "privateIPAddressVersion": "IPv4",
+              "subnet": {
+                "id": "[variables('subnet-id')]"
+              }
+            }
+          }
+        ],
+        "dnsSettings": {
+          "dnsServers": [
+            "[variables('dnsServerPrivateIp')]"
+          ]
+        }
+      }
+    },
+    {
+      "name": "[variables('vmName-vm01')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2016-04-30-preview",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "[variables('vNIC01ID')]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('vmSize')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('imagePublisher')]",
+            "offer": "[variables('imageOffer')]",
+            "sku": "[variables('imageSKU')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "osdisk",
+            "vhd": {
+              "uri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net/',variables('vmStorageAccountContainerName'),'/',variables('OSDisk-vm01'),'.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          },
+          "dataDisks": [
+            {
+              "vhd": {
+                "uri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net/',variables('vmStorageAccountContainerName'),'/',variables('DDDisk-vm01'),'.vhd')]"
+              },
+              "name": "[concat(variables('vmName-vm01'), '-data-disk')]",
+              "caching": "None",
+              "createOption": "Empty",
+              "diskSizeGB": "50",
+              "lun": 0
+            }
+          ]
+        },
+        "osProfile": {
+          "computerName": "[variables('vmName-vm01')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[variables('vNIC01ID')]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        }
+      },
+      "resources": [
+        {
+          "apiVersion": "2016-03-30",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName-vm01'))]"
+          ],
+          "location": "[resourceGroup().location]",
+          "name": "ADDeployment",
+          "properties": {
+            "publisher": "Microsoft.Powershell",
+            "type": "DSC",
+            "typeHandlerVersion": "2.9",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "modulesUrl": "https://raw.githubusercontent.com/Ralph101/Azure.Powershell.DSC/master/xRDSH.zip",
+              "configurationFunction": "vm101-Config.ps1\\CreateADPDC",
+              "Properties": {
+                "DomainName": "[variables('domainName')]",
+                "AdminCreds": {
+                  "UserName": "[parameters('adminUsername')]",
+                  "Password": "PrivateSettingsRef:AdminPassword"
+                }
+              }
+            },
+            "protectedSettings": {
+              "Items": {
+                "AdminPassword": "[parameters('adminPassword')]"
+              }
+            }
+          },
+          "type": "extensions"
+        },
+        {
+          "apiVersion": "2016-03-30",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName-vm01'))]",
+            "Microsoft.Compute/virtualMachines/AZW2K16DOM01/extensions/ADDeployment"
+          ],
+          "location": "[resourceGroup().location]",
+          "name": "Gateway",
+          "properties": {
+            "publisher": "Microsoft.Powershell",
+            "type": "DSC",
+            "typeHandlerVersion": "2.9",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "modulesUrl": "https://raw.githubusercontent.com/Ralph101/Azure.Powershell.DSC/master/xRDSH.zip",
+              "configurationFunction": "vm101-Config.ps1\\Gateway",
+              "Properties": {
+                "DomainName": "[variables('domainName')]",
+                "AdminCreds": {
+                  "UserName": "[parameters('adminUsername')]",
+                  "Password": "PrivateSettingsRef:AdminPassword"
+                }
+              }
+            },
+            "protectedSettings": {
+              "Items": {
+                "AdminPassword": "[parameters('adminPassword')]"
+              }
+            }
+          },
+          "type": "extensions"
+        },
+        {
+          "apiVersion": "2016-03-30",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName-vm01'))]",
+            "rdsh-vm-loop"
+          ],
+          "location": "[resourceGroup().location]",
+          "name": "RDSDeployment",
+          "properties": {
+            "publisher": "Microsoft.Powershell",
+            "type": "DSC",
+            "typeHandlerVersion": "2.9",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "modulesUrl": "https://raw.githubusercontent.com/Ralph101/Azure.Powershell.DSC/master/xRDSH.zip",
+              "configurationFunction": "vm101-Config.ps1\\RDSDeployment",
+              "Properties": {
+                "DomainName": "[variables('domainName')]",
+                "AdminCreds": {
+                  "UserName": "[parameters('adminUsername')]",
+                  "Password": "PrivateSettingsRef:AdminPassword"
+                },
+                "externalfqdn": "[reference(variables('externIPAddress')).dnsSettings.fqdn]",
+                "numberOfRdshInstances": "[parameters('numberOfRdshInstances')]",
+                "sessionHostNamingPrefix": "AZW2K16RDSH"
+              }
+            },
+            "protectedSettings": {
+              "Items": {
+                "AdminPassword": "[parameters('adminPassword')]"
+              }
+            }
+          },
+          "type": "extensions"
+        }
+      ]
+    },
+    {
+      "name": "[concat('AZW2K16RDSH', copyindex())]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2016-04-30-preview",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "rdsh-vm-loop",
+        "count": "[parameters('numberOfRdshInstances')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName-vm01'))]",
+        "[concat('Microsoft.Network/networkInterfaces/', 'vNIC-AZW2K16RDSH', copyindex())]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('rdshVmSize')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('imagePublisher')]",
+            "offer": "[variables('imageOffer')]",
+            "sku": "[variables('imageSKU')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "osdisk",
+            "vhd": {
+              "uri": "[concat('http://',variables('storageAccountName-rdsh'),'.blob.core.windows.net/',variables('vmStorageAccountContainerName'),'/','AZW2K16RDSH',copyindex(),'-os-disk.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "osProfile": {
+          "computerName": "[concat('AZW2K16RDSH', copyindex())]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat('vNIC-AZW2K16RDSH', copyindex()))]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        }
+      },
+
+      "resources": [
+        {
+          "apiVersion": "2016-03-30",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines', concat('AZW2K16RDSH', copyindex()))]"
+          ],
+          "location": "[resourceGroup().location]",
+          "name": "SessionHost",
+          "properties": {
+            "publisher": "Microsoft.Powershell",
+            "type": "DSC",
+            "typeHandlerVersion": "2.9",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "modulesUrl": "https://raw.githubusercontent.com/Ralph101/Azure.Powershell.DSC/master/xRDSH.zip",
+              "configurationFunction": "vm101-Config.ps1\\SessionHost",
+              "Properties": {
+                "DomainName": "[variables('domainName')]",
+                "AdminCreds": {
+                  "UserName": "[parameters('adminUsername')]",
+                  "Password": "PrivateSettingsRef:AdminPassword"
+                }
+              }
+            },
+            "protectedSettings": {
+              "Items": {
+                "AdminPassword": "[parameters('adminPassword')]"
+              }
+            }
+          },
+          "type": "extensions"
+        }
+      ]
+
+    }
+
+  ]
+}
