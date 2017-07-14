@@ -7,11 +7,11 @@
             PSDscAllowDomainUser = $true
         },
         @{ 
-            Nodename = $ConnectionBroker
+            Nodename = "ITSAZSWDOM01"
             Role = "DC"
         }
         @{ 
-            Nodename = $WebAccessServer
+            Nodename = "ITSAZSWGW01"
             Role = "GW"
         }
     )
