@@ -15,11 +15,11 @@
                 PSDscAllowDomainUser = $true
             },
             @{ 
-                Nodename = $ConnectionBroker
+                Nodename = "localhost"
                 Role = "DC"
-            }
+            },
             @{ 
-                Nodename = 
+                Nodename = $WebAccessServer
                 Role = "GW"
             }
         )
