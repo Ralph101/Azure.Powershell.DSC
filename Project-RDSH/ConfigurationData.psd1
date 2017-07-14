@@ -1,8 +1,18 @@
+# Configuration Data for AD  
 @{
     AllNodes = @(
         @{
-            NodeName = '*'
-            PSDscAllowPlainTextPassword = $true
-            }
-        )
-    }
+            NodeName="*"
+            PSDscAllowPlainTextPassword=$true
+            PSDscAllowDomainUser = $true
+        },
+        @{ 
+            Nodename = $ConnectionBroker
+            Role = "DC"
+        }
+        @{ 
+            Nodename = $WebAccessServer
+            Role = "GW"
+        }
+    )
+}
