@@ -33,7 +33,7 @@
   "resources": [
     {
       "type": "Microsoft.Compute/virtualMachines/extensions",
-      "name": "[concat(parameters('vmName-AZSWDOM01'),'/')]",
+      "name": "[concat(parameters('vmName-AZSWDOM01'),'/RDSDeployment')]",
       "apiVersion": "2016-03-30",
       "location": "[parameters('location')]",
       "properties": {
