@@ -47,8 +47,8 @@
               "userName": "[parameters('adminUserName')]",
               "password": "privateSettingsRef:adminPassword"
             },
-            "ConnectionBroker": "[parameters('vmName-AZSWDOM01')]",
-            "WebAccessServer": "[parameters('vmName-AZSWGW01')]",
+            "ConnectionBroker": "[concat(parameters('vmName-AZSWDOM01'),'.',parameters('domainName'))]",
+            "WebAccessServer": "[concat(parameters('vmName-AZSWGW01'),'.',parameters('domainName'))]",
             "numberOfRdshInstances": "[parameters('numberOfRdshInstances')]",
             "sessionHostNamingPrefix": "[parameters('vmName-AZSWRDSH')]"
           }
