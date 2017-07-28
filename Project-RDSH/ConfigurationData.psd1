@@ -2,7 +2,7 @@
     AllNodes = @( 
         @{ 
             NodeName = “localhost”; 
-            Role     = “WebServer” 
+            Role     = “DC” 
         } 
     ); 
 }
