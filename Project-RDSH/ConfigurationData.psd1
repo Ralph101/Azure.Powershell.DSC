@@ -1,8 +1,8 @@
-@{ 
-    AllNodes = @( 
-        @{ 
-            NodeName = “localhost”; 
-            Role     = “DC” 
-        } 
-    ); 
-}
+@{
+    AllNodes = @(
+        @{
+            NodeName    = 'localhost'
+            Role        = 'DC'
+            }
+        )
+    }
