@@ -1,8 +1,8 @@
 @{
     AllNodes = @(
         @{
-            NodeName = 'localhost'
-            Role = 'Gateway'
+            NodeName    = 'localhost'
+            Role        = 'vmName-AZSWGW01'
             }
         )
     }
