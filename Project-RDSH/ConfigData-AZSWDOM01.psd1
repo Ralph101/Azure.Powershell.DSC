@@ -1,7 +1,7 @@
 @{
     AllNodes = @(
         @{
-            NodeName    = 'localhost'
+            NodeName    = 'ITSAZSWDOM01.rdshOnAzure.local'
             Role        = 'DC'
             }
         )
