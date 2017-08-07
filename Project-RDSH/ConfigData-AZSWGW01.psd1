@@ -1,7 +1,7 @@
 @{
     AllNodes = @(
         @{
-            NodeName    = 'ITSAZSWGW01.rdshOnAzure.local'
+            NodeName    = 'localhost'
             Role        = 'vmName-AZSWGW01'
             PSDscAllowPlainTextPassword = $true
             }
