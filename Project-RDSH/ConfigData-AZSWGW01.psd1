@@ -1,8 +1,9 @@
+# Configure all of the settings we want to apply for this configuration
 @{
     AllNodes = @(
-        @{
-            NodeName    = 'localhost'
-            Role        = 'vmName-AZSWGW'
-            }
-        )
-    }
+        @{ 
+            Nodename = "localhost"
+            Role = "vmName-AZSWGW"
+        }
+    )
+}
