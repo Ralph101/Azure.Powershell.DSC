@@ -3,7 +3,7 @@
     AllNodes = @(
         @{ 
             Nodename = "localhost"
-            Role = "vmName-AZSWDOM01"
+            Role = "vmName-AZSWDOM"
         }
     )
 }
